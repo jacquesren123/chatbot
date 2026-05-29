@@ -3,8 +3,16 @@ from pydantic import BaseModel
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 import os
+import sys
 import httpx
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Add parent directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from shared.queue import MessagePublisher, Event, EventType
 
