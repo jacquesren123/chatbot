@@ -3,9 +3,14 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uuid
 from datetime import datetime
+import sys
+import os
 
-from .providers import AIProvider, OpenAIProvider, AnthropicProvider
-from .memory import ConversationMemory
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from services.ai_engine.providers import AIProvider, OpenAIProvider, AnthropicProvider, OllamaProvider
+from services.ai_engine.memory import ConversationMemory
 from shared.queue import MessagePublisher, Event, EventType
 from shared.models import Message, MessageRole
 
@@ -30,18 +35,26 @@ class ChatResponse(BaseModel):
 
 class AIEngine:
     def __init__(self):
-        self.providers = {
-            "openai": OpenAIProvider(),
-            "anthropic": AnthropicProvider(),
-        }
+        self.providers = {}
         self.memory = ConversationMemory()
 
+    def _get_provider(self, provider_name: str) -> AIProvider:
+        """Lazy-load providers only when needed"""
+        if provider_name not in self.providers:
+            if provider_name == "openai":
+                self.providers[provider_name] = OpenAIProvider()
+            elif provider_name == "anthropic":
+                self.providers[provider_name] = AnthropicProvider()
+            elif provider_name == "ollama":
+                self.providers[provider_name] = OllamaProvider()
+            else:
+                raise ValueError(f"Unknown AI provider: {provider_name}")
+        return self.providers[provider_name]
+
     async def process_message(
-        self, conversation_id: str, tenant_id: str, message: str, context: Dict[str, Any], provider: str = "openai"
+        self, conversation_id: str, tenant_id: str, message: str, context: Dict[str, Any], provider: str = "ollama"
     ) -> ChatResponse:
-        ai_provider = self.providers.get(provider)
-        if not ai_provider:
-            raise ValueError(f"Unknown AI provider: {provider}")
+        ai_provider = self._get_provider(provider)
 
         history = await self.memory.get_history(conversation_id)
         
