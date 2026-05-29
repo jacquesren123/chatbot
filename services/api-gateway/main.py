@@ -1,9 +1,17 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import httpx
 import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from shared.database import get_db
+from shared.models import ConversationModel, MessageModel
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 app = FastAPI(title="API Gateway")
 
@@ -101,6 +109,81 @@ async def get_availability(
             return response.json()
         except httpx.RequestError as e:
             raise HTTPException(status_code=503, detail=f"Scheduling Service unavailable: {str(e)}")
+
+
+@app.get("/api/v1/conversations")
+async def get_conversations(tenant_id: str = Depends(verify_tenant), db: Session = Depends(get_db)):
+    """Get all conversations for a tenant"""
+    try:
+        import uuid
+        tenant_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, tenant_id)
+        
+        conversations = db.query(ConversationModel).filter_by(tenant_id=tenant_uuid).all()
+        
+        result = []
+        for conv in conversations:
+            message_count = db.query(func.count(MessageModel.id)).filter_by(conversation_id=conv.id).scalar()
+            last_message = db.query(MessageModel).filter_by(conversation_id=conv.id).order_by(MessageModel.created_at.desc()).first()
+            
+            result.append({
+                "id": str(conv.id),
+                "phone_number": conv.phone_number,
+                "status": conv.status.value,
+                "created_at": conv.created_at.isoformat(),
+                "message_count": message_count,
+                "last_message": last_message.content[:100] if last_message else None
+            })
+        
+        return {"conversations": result, "total": len(result)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/conversations/{conversation_id}/messages")
+async def get_messages(conversation_id: str, tenant_id: str = Depends(verify_tenant), db: Session = Depends(get_db)):
+    """Get all messages for a conversation"""
+    try:
+        import uuid
+        conv_uuid = uuid.UUID(conversation_id)
+        
+        messages = db.query(MessageModel).filter_by(conversation_id=conv_uuid).order_by(MessageModel.created_at).all()
+        
+        return {
+            "messages": [
+                {
+                    "id": str(msg.id),
+                    "role": msg.role.value,
+                    "content": msg.content,
+                    "created_at": msg.created_at.isoformat()
+                }
+                for msg in messages
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/analytics")
+async def get_analytics(tenant_id: str = Depends(verify_tenant), db: Session = Depends(get_db)):
+    """Get analytics for a tenant"""
+    try:
+        import uuid
+        tenant_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, tenant_id)
+        
+        total_conversations = db.query(func.count(ConversationModel.id)).filter_by(tenant_id=tenant_uuid).scalar()
+        active_conversations = db.query(func.count(ConversationModel.id)).filter_by(tenant_id=tenant_uuid, status='ACTIVE').scalar()
+        total_messages = db.query(func.count(MessageModel.id)).join(ConversationModel).filter(ConversationModel.tenant_id == tenant_uuid).scalar()
+        
+        avg_messages = total_messages / total_conversations if total_conversations > 0 else 0
+        
+        return {
+            "total_conversations": total_conversations,
+            "active_conversations": active_conversations,
+            "total_messages": total_messages,
+            "avg_messages_per_conversation": round(avg_messages, 1)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")
