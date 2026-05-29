@@ -30,7 +30,7 @@ class LeadModel(Base):
     status = Column(SQLEnum(LeadStatus), default=LeadStatus.NEW)
     qualification_score = Column(Float, default=0.0)
     attributes = Column(JSON, default={})
-    metadata = Column(JSON, default={})
+    meta_data = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -55,7 +55,7 @@ class Lead(BaseModel):
     status: LeadStatus = LeadStatus.NEW
     qualification_score: float = 0.0
     attributes: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

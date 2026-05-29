@@ -28,7 +28,7 @@ class AppointmentModel(Base):
     scheduled_at = Column(DateTime, nullable=False)
     duration_minutes = Column(String, default="30")
     status = Column(SQLEnum(AppointmentStatus), default=AppointmentStatus.SCHEDULED)
-    metadata = Column(JSON, default={})
+    meta_data = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -42,6 +42,6 @@ class Appointment(BaseModel):
     scheduled_at: datetime
     duration_minutes: int = 30
     status: AppointmentStatus = AppointmentStatus.SCHEDULED
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

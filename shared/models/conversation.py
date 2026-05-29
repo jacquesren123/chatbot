@@ -32,7 +32,7 @@ class ConversationModel(Base):
     phone_number = Column(String, nullable=False)
     status = Column(SQLEnum(ConversationStatus), default=ConversationStatus.ACTIVE)
     context = Column(JSON, default={})
-    metadata = Column(JSON, default={})
+    meta_data = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -44,7 +44,7 @@ class MessageModel(Base):
     conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False)
     role = Column(SQLEnum(MessageRole), nullable=False)
     content = Column(String, nullable=False)
-    metadata = Column(JSON, default={})
+    meta_data = Column(JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -55,7 +55,7 @@ class Conversation(BaseModel):
     phone_number: str
     status: ConversationStatus = ConversationStatus.ACTIVE
     context: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -65,5 +65,5 @@ class Message(BaseModel):
     conversation_id: uuid.UUID
     role: MessageRole
     content: str
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
