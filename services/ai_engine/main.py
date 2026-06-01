@@ -72,15 +72,8 @@ class AIEngine:
         
         # Get RAG context - retrieve more chunks for better coverage
         rag_context = rag.get_context(rag_tenant_id, message)
-        print(f"\n=== RAG DEBUG ===")
-        print(f"Query: {message}")
-        print(f"Tenant: {rag_tenant_id}")
-        print(f"Context length: {len(rag_context)} chars")
-        print(f"Context preview: {rag_context[:500]}..." if rag_context else "No context found")
-        print(f"=================\n")
         
         system_prompt = self._build_system_prompt(context, rag_context)
-        print(f"System prompt: {system_prompt[:800]}...")
         
         response = await ai_provider.generate_response(
             message=message,

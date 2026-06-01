@@ -13,7 +13,19 @@ redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
 
 
 class SimpleRAG:
-    """Simple RAG implementation using in-memory storage"""
+    """Simple RAG implementation using Redis for cross-process storage
+    
+    This implementation uses:
+    - Redis for persistent storage (shared between API Gateway and AI Engine)
+    - Keyword-based search with relevance scoring
+    - 500-char chunks with 50-char overlap
+    - Multi-tenant isolation via UUID-based keys
+    
+    Future upgrades:
+    - Vector embeddings (OpenAI text-embedding-3-small)
+    - Semantic search (Pinecone or Chroma)
+    - Hybrid search (keyword + semantic)
+    """
     
     def __init__(self):
         self.chunk_size = 500
@@ -34,7 +46,19 @@ class SimpleRAG:
         return chunks
     
     def ingest_document(self, tenant_id: str, doc_id: str, filename: str, content: str):
-        """Ingest a document into the knowledge base"""
+        """Ingest a document into the RAG knowledge base
+        
+        Args:
+            tenant_id: UUID string for tenant isolation
+            doc_id: Unique document identifier
+            filename: Original filename
+            content: Extracted text content
+            
+        Returns:
+            Number of chunks created
+            
+        Storage: Redis key pattern: rag:{tenant_id}:{doc_id}
+        """
         chunks = self.chunk_text(content)
         
         doc_data = {
@@ -50,7 +74,18 @@ class SimpleRAG:
         return len(chunks)
     
     def search(self, tenant_id: str, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Simple keyword-based search (replace with vector search later)"""
+        """Search for relevant document chunks using keyword matching
+        
+        Args:
+            tenant_id: UUID string for tenant isolation
+            query: User's search query
+            top_k: Number of top results to return (default: 5)
+            
+        Returns:
+            List of dicts with: content, source, doc_id, chunk_id, score
+            
+        Note: This is keyword-based. Upgrade to vector search for semantic understanding.
+        """
         results = []
         query_lower = query.lower()
         query_words = [w for w in query_lower.split() if len(w) > 2]  # Filter short words
