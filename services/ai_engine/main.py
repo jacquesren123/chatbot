@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from services.ai_engine.providers import AIProvider, OpenAIProvider, AnthropicProvider, OllamaProvider
 from services.ai_engine.memory import ConversationMemory
+from services.ai_engine.rag import rag
 from shared.queue import MessagePublisher, Event, EventType
 from shared.models import Message, MessageRole, ConversationModel, MessageModel, ConversationStatus
 from shared.database import get_db
@@ -26,6 +27,7 @@ class ChatRequest(BaseModel):
     tenant_id: str
     message: str
     context: Dict[str, Any] = {}
+    provider: Optional[str] = "ollama"
 
 
 class ChatResponse(BaseModel):
@@ -60,7 +62,25 @@ class AIEngine:
 
         history = await self.memory.get_history(conversation_id)
         
-        system_prompt = self._build_system_prompt(context)
+        # Convert tenant_id to UUID format for RAG
+        try:
+            tenant_uuid = uuid.UUID(tenant_id) if isinstance(tenant_id, str) else tenant_id
+            rag_tenant_id = str(tenant_uuid)
+        except ValueError:
+            tenant_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, tenant_id)
+            rag_tenant_id = str(tenant_uuid)
+        
+        # Get RAG context - retrieve more chunks for better coverage
+        rag_context = rag.get_context(rag_tenant_id, message)
+        print(f"\n=== RAG DEBUG ===")
+        print(f"Query: {message}")
+        print(f"Tenant: {rag_tenant_id}")
+        print(f"Context length: {len(rag_context)} chars")
+        print(f"Context preview: {rag_context[:500]}..." if rag_context else "No context found")
+        print(f"=================\n")
+        
+        system_prompt = self._build_system_prompt(context, rag_context)
+        print(f"System prompt: {system_prompt[:800]}...")
         
         response = await ai_provider.generate_response(
             message=message,
@@ -85,22 +105,15 @@ class AIEngine:
             metadata=response.get("metadata", {})
         )
 
-    def _build_system_prompt(self, context: Dict[str, Any]) -> str:
-        return f"""You are an AI assistant for a business helping with lead qualification and appointment scheduling.
+    def _build_system_prompt(self, context: Dict[str, Any], rag_context: str = "") -> str:
+        if rag_context:
+            return f"""Read this information carefully:
 
-Business Context:
-- Business Name: {context.get('business_name', 'Our Company')}
-- Services: {context.get('services', 'Various services')}
+{rag_context}
 
-Your goals:
-1. Engage naturally and professionally via SMS
-2. Qualify leads by understanding their needs
-3. Answer common questions
-4. Schedule appointments when appropriate
-5. Escalate to human agents when needed
-
-Keep responses concise (SMS-friendly, under 160 characters when possible).
-"""
+Now answer the user's question using ONLY facts from above. Copy exact prices and details. Do not add anything else."""
+        else:
+            return "You are a helpful business assistant. Answer questions professionally."
 
     def _detect_escalation(self, response: str, context: Dict[str, Any]) -> bool:
         escalation_keywords = ["speak to someone", "human", "agent", "representative", "manager"]
@@ -162,6 +175,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
             tenant_id=request.tenant_id,
             message=request.message,
             context=request.context,
+            provider=request.provider,
             db=db
         )
 

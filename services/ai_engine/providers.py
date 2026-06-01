@@ -88,7 +88,7 @@ class AnthropicProvider(AIProvider):
 class OllamaProvider(AIProvider):
     def __init__(self):
         self.base_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
-        self.model = os.getenv("OLLAMA_MODEL", "llama3.2")
+        self.model = os.getenv("OLLAMA_MODEL", "llama3.1:8b")  # Better model for RAG
 
     async def generate_response(
         self, message: str, history: List[Dict], system_prompt: str, context: Dict[str, Any]
@@ -111,7 +111,11 @@ class OllamaProvider(AIProvider):
                 json={
                     "model": self.model,
                     "messages": messages,
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.1,  # Lower temperature for more factual responses
+                        "top_p": 0.9
+                    }
                 }
             )
             

@@ -10,11 +10,6 @@ cd services/ai_engine
 PYTHONPATH=../.. nohup uvicorn main:app --host 0.0.0.0 --port 8001 > ../../logs/ai-engine.log 2>&1 &
 echo "AI Engine started on port 8001 (PID: $!)"
 
-# Start SMS Gateway
-cd ../sms-gateway
-PYTHONPATH=../.. nohup uvicorn main:app --host 0.0.0.0 --port 8002 > ../../logs/sms-gateway.log 2>&1 &
-echo "SMS Gateway started on port 8002 (PID: $!)"
-
 # Start Qualification Engine
 cd ../qualification-engine
 PYTHONPATH=../.. nohup uvicorn main:app --host 0.0.0.0 --port 8003 > ../../logs/qualification-engine.log 2>&1 &

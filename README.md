@@ -15,7 +15,7 @@ docker-compose up -d
 curl http://localhost:8000/health
 
 # Open test chat UI
-open chat.html  # or double-click in file explorer
+explorer.exe chat.html  
 ```
 
 ## Test Conversation
